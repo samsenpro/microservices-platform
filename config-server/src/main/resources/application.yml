@@ -1,0 +1,41 @@
+server:
+  port: ${SERVER_PORT:8888}
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    # Backend "native": lee los ficheros de config-repo/ del sistema de ficheros (en Docker, un volumen
+    # de solo lectura). En producción se cambiaría por un repositorio Git o Vault.
+    include: native
+  cloud:
+    config:
+      server:
+        native:
+          search-locations: ${CONFIG_REPO_LOCATION:file:../config-repo/}
+  security:
+    user:
+      # Sin valores por defecto: las credenciales llegan siempre por variables de entorno
+      name: ${CONFIG_SERVER_USERNAME}
+      password: ${CONFIG_SERVER_PASSWORD}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  service:
+    description: Configuración centralizada de la plataforma
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:-}]"

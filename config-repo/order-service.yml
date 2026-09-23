@@ -1,0 +1,85 @@
+# Order Service: pedidos (dueño de orders_db). Consulta product-service por HTTP, nunca su base de datos.
+server:
+  port: ${SERVER_PORT:8093}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5443/orders_db}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5s
+
+# --- Cliente de product-service --------------------------------------------------------------------
+clients:
+  product-service:
+    # Nombre lógico: el balanceador (Spring Cloud LoadBalancer) lo resuelve contra Eureka.
+    base-url: http://product-service
+    # Timeout: nunca se espera indefinidamente. 2 s de lectura es ~10 veces la latencia normal.
+    connect-timeout: 1s
+    read-timeout: 2s
+
+# --- Resiliencia de la llamada order-service -> product-service -----------------------------------
+# Orden de ejecución: Retry( CircuitBreaker( Bulkhead( llamada HTTP con timeout ) ) )
+resilience4j:
+  circuitbreaker:
+    instances:
+      productService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        # OPEN si falla el 50 % de las últimas llamadas...
+        failure-rate-threshold: 50
+        # ...o si el 80 % tarda más de 1,5 s (dependencia degradada aunque responda).
+        slow-call-duration-threshold: 1500ms
+        slow-call-rate-threshold: 80
+        # Tiempo en OPEN (fallo inmediato, sin llamar) antes de pasar a HALF_OPEN.
+        wait-duration-in-open-state: 10s
+        automatic-transition-from-open-to-half-open-enabled: true
+        # En HALF_OPEN se dejan pasar 3 llamadas de prueba: si van bien, CLOSED; si no, OPEN otra vez.
+        permitted-number-of-calls-in-half-open-state: 3
+        # Solo los fallos de la dependencia cuentan (timeouts, conexión, 5xx). Un 404 es una respuesta válida.
+        record-exceptions:
+          - com.samsenpro.platform.order.client.ProductServiceUnavailableException
+        ignore-exceptions:
+          - io.github.resilience4j.bulkhead.BulkheadFullException
+        register-health-indicator: true
+        # Un circuito abierto no debe marcar order-service como DOWN (Eureka le quitaría el tráfico).
+        allow-health-indicator-to-fail: false
+  retry:
+    instances:
+      productService:
+        # 1 intento + 2 reintentos, esperando 200 ms y 400 ms (backoff exponencial). Nunca infinito.
+        max-attempts: 3
+        wait-duration: 200ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        # Solo errores transitorios. Los 4xx (400, 401, 403, 404, 409) no se reintentan.
+        retry-exceptions:
+          - com.samsenpro.platform.order.client.ProductServiceUnavailableException
+  bulkhead:
+    instances:
+      productService:
+        # Como máximo 20 hilos de Tomcat (de 200) pueden estar esperando a product-service a la vez.
+        # Si está lento, el resto de peticiones fallan rápido con 503 en lugar de agotar el servidor.
+        max-concurrent-calls: 20
+        max-wait-duration: 50ms
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,circuitbreakerevents,retries,bulkheads
+  health:
+    circuitbreakers:
+      enabled: true
+
+platform:
+  openapi:
+    title: Order Service API
+    description: Pedidos. Valida producto, estado, precio y stock contra product-service.
+
+info:
+  service:
+    description: Pedidos

@@ -1,0 +1,21 @@
+# Product Service: catálogo de productos (dueño de products_db)
+server:
+  port: ${SERVER_PORT:8092}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5442/products_db}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5s
+
+platform:
+  openapi:
+    title: Product Service API
+    description: Catálogo de productos. Lectura para USER/ADMIN, escritura solo ADMIN.
+
+info:
+  service:
+    description: Catálogo de productos

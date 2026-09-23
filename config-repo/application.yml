@@ -1,0 +1,83 @@
+# =====================================================================================================
+# Configuración común a TODOS los servicios cliente del Config Server.
+# Los valores sensibles nunca se escriben aquí: se referencian con ${VARIABLE} y cada servicio los
+# resuelve con sus propias variables de entorno (el Config Server devuelve los placeholders sin resolver).
+# =====================================================================================================
+
+# --- Service Discovery ------------------------------------------------------------------------------
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+    # Cada cuánto se descarga el registro. 5 s (en vez de 30 s) para que la caída o la vuelta de una
+    # instancia se note rápido; en producción se ajusta según el tamaño del registro.
+    registry-fetch-interval-seconds: 5
+    # Publica en Eureka el estado de /actuator/health: una instancia DOWN deja de recibir tráfico.
+    healthcheck:
+      enabled: true
+  instance:
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+
+spring:
+  cloud:
+    loadbalancer:
+      # Caché del balanceador sobre el registro de Eureka (por defecto 35 s).
+      cache:
+        ttl: 5s
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    # Si la base de datos aún no acepta conexiones al arrancar, Flyway reintenta en lugar de abortar.
+    connect-retries: 10
+    connect-retries-interval: 3s
+
+# --- Seguridad -------------------------------------------------------------------------------------
+security:
+  jwt:
+    issuer: microservices-platform
+    secret: ${JWT_SECRET}
+    expiration: 1h
+
+# --- Actuator: solo lo necesario -------------------------------------------------------------------
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-components: always
+  info:
+    env:
+      enabled: true
+    java:
+      enabled: true
+  tracing:
+    # Contexto W3C (traceparent) propagado Gateway -> Order -> Product; el traceId aparece en cada log.
+    sampling:
+      probability: 1.0
+
+# --- Logging ---------------------------------------------------------------------------------------
+logging:
+  pattern:
+    correlation: "[${spring.application.name:},%X{traceId:-},%X{correlationId:-}] "
+  include-application-name: false
+  level:
+    root: INFO
+    com.samsenpro.platform: INFO
+
+# --- OpenAPI -----------------------------------------------------------------------------------------
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: false

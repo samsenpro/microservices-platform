@@ -1,0 +1,94 @@
+# API Gateway: único punto de entrada. Solo enruta y aplica políticas transversales (JWT, rate limiting,
+# correlation ID); no contiene lógica de negocio.
+server:
+  port: ${SERVER_PORT:8090}
+
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 2000
+            # Debe superar el peor caso de order-service con sus reintentos (3 x 2 s + backoff).
+            response-timeout: 10s
+          routes:
+            # lb://<servicio>: la dirección se obtiene de Eureka en cada petición, nunca está fijada.
+            - id: user-auth
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users/login, /api/users/register
+              filters:
+                # Protección contra fuerza bruta / registro masivo: por IP de cliente.
+                - name: ClientRateLimit
+                  args:
+                    limit: ${RATE_LIMIT_AUTH_REQUESTS:10}
+                    period: ${RATE_LIMIT_AUTH_PERIOD:1m}
+            - id: users
+              uri: lb://user-service
+              predicates:
+                - Path=/api/users, /api/users/**
+              filters:
+                - name: ClientRateLimit
+                  args:
+                    limit: ${RATE_LIMIT_API_REQUESTS:100}
+                    period: ${RATE_LIMIT_API_PERIOD:10s}
+            - id: products
+              uri: lb://product-service
+              predicates:
+                - Path=/api/products, /api/products/**
+              filters:
+                - name: ClientRateLimit
+                  args:
+                    limit: ${RATE_LIMIT_API_REQUESTS:100}
+                    period: ${RATE_LIMIT_API_PERIOD:10s}
+            - id: orders
+              uri: lb://order-service
+              predicates:
+                - Path=/api/orders, /api/orders/**
+              filters:
+                - name: ClientRateLimit
+                  args:
+                    limit: ${RATE_LIMIT_API_REQUESTS:100}
+                    period: ${RATE_LIMIT_API_PERIOD:10s}
+            # Especificación OpenAPI de cada servicio, mostrada por separado en el Swagger UI del gateway.
+            - id: docs-users
+              uri: lb://user-service
+              predicates:
+                - Path=/docs/users/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-products
+              uri: lb://product-service
+              predicates:
+                - Path=/docs/products/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+            - id: docs-orders
+              uri: lb://order-service
+              predicates:
+                - Path=/docs/orders/v3/api-docs
+              filters:
+                - SetPath=/v3/api-docs
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+springdoc:
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    urls:
+      - name: User Service
+        url: /docs/users/v3/api-docs
+      - name: Product Service
+        url: /docs/products/v3/api-docs
+      - name: Order Service
+        url: /docs/orders/v3/api-docs
+
+info:
+  service:
+    description: Punto de entrada único de la plataforma

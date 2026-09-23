@@ -1,0 +1,15 @@
+# Eureka Server
+server:
+  port: ${SERVER_PORT:8761}
+
+eureka:
+  client:
+    # Es el propio registro: no se registra ni descarga el registro de otro servidor.
+    register-with-eureka: false
+    fetch-registry: false
+  server:
+    # Con pocas instancias la autopreservación mantendría en el registro instancias muertas.
+    # Se desactiva para que una instancia caída desaparezca en segundos (entorno de demostración).
+    enable-self-preservation: false
+    eviction-interval-timer-in-ms: 5000
+    response-cache-update-interval-ms: 3000
