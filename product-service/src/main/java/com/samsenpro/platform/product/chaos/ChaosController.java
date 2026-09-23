@@ -53,7 +53,9 @@ public class ChaosController {
     ChaosSettings configure(@RequestParam ChaosSettings.Mode mode,
                             @RequestParam(defaultValue = "0") @Min(0) @Max(30_000) long delayMs,
                             @RequestParam(defaultValue = "1.0") @DecimalMin("0.0") @DecimalMax("1.0") double failureRate) {
-        ChaosSettings requested = new ChaosSettings(mode, delayMs, failureRate);
+        ChaosSettings requested = mode == ChaosSettings.Mode.NONE
+                ? ChaosSettings.OFF
+                : new ChaosSettings(mode, delayMs, failureRate);
         settings.set(requested);
         log.warn("Chaos settings changed: {}", requested);
         return requested;
