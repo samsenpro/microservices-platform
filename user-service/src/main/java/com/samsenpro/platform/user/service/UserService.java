@@ -42,7 +42,8 @@ public class UserService {
         if (users.existsByEmailIgnoreCase(request.email())) {
             throw new ApiException(HttpStatus.CONFLICT, "EMAIL_TAKEN", "Email is already registered");
         }
-        User user = users.save(new User(request.username(), request.email(),
+        // saveAndFlush: el INSERT se ejecuta ya y createdAt/updatedAt quedan informados en la respuesta
+        User user = users.saveAndFlush(new User(request.username(), request.email(),
                 passwordEncoder.encode(request.password()), Role.USER));
         log.info("User {} registered", user.getId());
         return UserResponse.from(user);

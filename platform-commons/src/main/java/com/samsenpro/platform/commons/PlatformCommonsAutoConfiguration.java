@@ -46,10 +46,14 @@ public class PlatformCommonsAutoConfiguration {
 
     private static final Set<String> ROLES = Set.of("USER", "ADMIN");
 
+    /**
+     * Justo después del filtro de observación de Spring Boot (HIGHEST_PRECEDENCE + 1), que abre el span y
+     * pone el traceId en el MDC, y mucho antes que Spring Security (-100).
+     */
     @Bean
     FilterRegistrationBean<CorrelationIdFilter> correlationIdFilter() {
         FilterRegistrationBean<CorrelationIdFilter> registration = new FilterRegistrationBean<>(new CorrelationIdFilter());
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 2);
         return registration;
     }
 

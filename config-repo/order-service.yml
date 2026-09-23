@@ -9,7 +9,7 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
-      connection-timeout: 5s
+      connection-timeout: 5000
   jpa:
     properties:
       hibernate:

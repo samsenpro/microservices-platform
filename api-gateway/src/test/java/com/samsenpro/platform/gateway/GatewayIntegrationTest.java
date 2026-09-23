@@ -100,12 +100,14 @@ class GatewayIntegrationTest {
     @Test
     void preservesAValidClientCorrelationIdAndReplacesAnInvalidOne() {
         String token = TestJwts.user(UUID.randomUUID());
-        SERVICES.stubFor(get("/api/products").willReturn(aResponse().withStatus(200).withBody("[]")));
+        // Los servicios también devuelven la cabecera: el cliente debe recibirla una sola vez
+        SERVICES.stubFor(get("/api/products").willReturn(aResponse().withStatus(200).withBody("[]")
+                .withHeader("X-Correlation-ID", "client-trace-42")));
 
         client.get().uri("/api/products").header("Authorization", "Bearer " + token)
                 .header("X-Correlation-ID", "client-trace-42")
                 .exchange()
-                .expectHeader().valueEquals("X-Correlation-ID", "client-trace-42");
+                .expectHeader().valuesMatch("X-Correlation-ID", "client-trace-42");
         SERVICES.verify(getRequestedFor(urlEqualTo("/api/products"))
                 .withHeader("X-Correlation-ID", equalTo("client-trace-42")));
 

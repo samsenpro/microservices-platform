@@ -9,7 +9,7 @@ spring:
     password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 10
-      connection-timeout: 5s
+      connection-timeout: 5000
 
 users:
   # Administrador inicial: se crea solo si no existe y solo si ADMIN_PASSWORD está definida.

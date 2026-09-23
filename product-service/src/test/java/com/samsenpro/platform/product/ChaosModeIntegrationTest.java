@@ -4,16 +4,14 @@ import com.samsenpro.platform.commons.testing.TestJwts;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -27,12 +25,12 @@ class ChaosModeIntegrationTest extends PostgresIntegrationTest {
 
     @AfterEach
     void resetChaos() throws Exception {
-        mvc.perform(delete("/internal/chaos")).andExpect(status().isOk());
+        configure("NONE", 0, "0.0");
     }
 
     @Test
     void injectsHttp503() throws Exception {
-        configure("{\"mode\":\"ERROR_503\",\"delayMs\":0,\"failureRate\":1.0}");
+        configure("ERROR_503", 0, "1.0");
 
         mvc.perform(get("/api/products/1").header("Authorization", USER))
                 .andExpect(status().isServiceUnavailable())
@@ -41,7 +39,7 @@ class ChaosModeIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void injectsHttp500() throws Exception {
-        configure("{\"mode\":\"ERROR_500\",\"delayMs\":0,\"failureRate\":1.0}");
+        configure("ERROR_500", 0, "1.0");
 
         mvc.perform(get("/api/products/1").header("Authorization", USER))
                 .andExpect(status().isInternalServerError());
@@ -49,7 +47,7 @@ class ChaosModeIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void injectsLatencyButStillAnswers() throws Exception {
-        configure("{\"mode\":\"DELAY\",\"delayMs\":300,\"failureRate\":1.0}");
+        configure("DELAY", 300, "1.0");
 
         long start = System.nanoTime();
         mvc.perform(get("/api/products").header("Authorization", USER)).andExpect(status().isOk());
@@ -59,17 +57,25 @@ class ChaosModeIntegrationTest extends PostgresIntegrationTest {
 
     @Test
     void onlyReachableFromInsideTheContainer() throws Exception {
-        mvc.perform(put("/internal/chaos").with(request -> {
+        mvc.perform(post("/internal/chaos").with(request -> {
                             request.setRemoteAddr("172.18.0.9");
                             return request;
                         })
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mode\":\"ERROR_503\",\"delayMs\":0,\"failureRate\":1.0}"))
+                        .param("mode", "ERROR_503"))
                 .andExpect(status().isUnauthorized());
     }
 
-    private void configure(String settings) throws Exception {
-        mvc.perform(put("/internal/chaos").contentType(MediaType.APPLICATION_JSON).content(settings))
+    @Test
+    void rejectsOutOfRangeSettings() throws Exception {
+        mvc.perform(post("/internal/chaos").param("mode", "ERROR_503").param("failureRate", "1.5"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/internal/chaos").param("mode", "EXPLODE"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private void configure(String mode, long delayMs, String failureRate) throws Exception {
+        mvc.perform(post("/internal/chaos").param("mode", mode).param("delayMs", String.valueOf(delayMs))
+                        .param("failureRate", failureRate))
                 .andExpect(status().isOk());
     }
 }

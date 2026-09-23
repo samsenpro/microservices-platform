@@ -1,0 +1,178 @@
+# Plataforma completa: docker compose up --build
+# Requiere un fichero .env (copia de .env.example con valores propios).
+#
+# Orden de arranque (healthchecks + depends_on):  config-server → service-discovery → servicios → gateway.
+# Aun así, ningún servicio depende solo de ese orden: reintentan la conexión al Config Server
+# (fail-fast + retry), Flyway reintenta la base de datos y el cliente Eureka se re-registra solo.
+
+x-java-service: &java-service
+  restart: on-failure
+  networks: [platform]
+
+x-platform-env: &platform-env
+  SPRING_PROFILES_ACTIVE: docker
+  CONFIG_SERVER_URL: http://config-server:8888
+  CONFIG_SERVER_USERNAME: ${CONFIG_SERVER_USERNAME:?CONFIG_SERVER_USERNAME is required}
+  CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?CONFIG_SERVER_PASSWORD is required}
+  EUREKA_SERVER_URL: http://${EUREKA_USERNAME}:${EUREKA_PASSWORD}@service-discovery:8761/eureka/
+  JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+
+x-postgres: &postgres
+  image: postgres:16-alpine
+  restart: unless-stopped
+  networks: [platform]
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+    interval: 5s
+    timeout: 3s
+    retries: 10
+
+services:
+  # ---------------------------------------------------------------- infraestructura de plataforma
+  config-server:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      CONFIG_REPO_LOCATION: file:/config-repo/
+      CONFIG_SERVER_USERNAME: ${CONFIG_SERVER_USERNAME}
+      CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD}
+    volumes:
+      - ./config-repo:/config-repo:ro
+
+  service-discovery:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: service-discovery/Dockerfile
+    environment:
+      <<: *platform-env
+      EUREKA_USERNAME: ${EUREKA_USERNAME:?EUREKA_USERNAME is required}
+      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
+    ports:
+      # Dashboard de Eureka (protegido con EUREKA_USERNAME / EUREKA_PASSWORD)
+      - "127.0.0.1:${EUREKA_PORT:-8761}:8761"
+    depends_on:
+      config-server:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------- bases de datos (una por servicio)
+  users-db:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: users_db
+      POSTGRES_USER: ${USERS_DB_USERNAME:-users}
+      POSTGRES_PASSWORD: ${USERS_DB_PASSWORD:?USERS_DB_PASSWORD is required}
+    volumes:
+      - users-db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${USERS_DB_PORT:-5441}:5432"
+
+  products-db:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: products_db
+      POSTGRES_USER: ${PRODUCTS_DB_USERNAME:-products}
+      POSTGRES_PASSWORD: ${PRODUCTS_DB_PASSWORD:?PRODUCTS_DB_PASSWORD is required}
+    volumes:
+      - products-db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${PRODUCTS_DB_PORT:-5442}:5432"
+
+  orders-db:
+    <<: *postgres
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: ${ORDERS_DB_USERNAME:-orders}
+      POSTGRES_PASSWORD: ${ORDERS_DB_PASSWORD:?ORDERS_DB_PASSWORD is required}
+    volumes:
+      - orders-db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:${ORDERS_DB_PORT:-5443}:5432"
+
+  # ---------------------------------------------------------------- microservicios (sin puertos publicados)
+  user-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    environment:
+      <<: *platform-env
+      DB_URL: jdbc:postgresql://users-db:5432/users_db
+      DB_USERNAME: ${USERS_DB_USERNAME:-users}
+      DB_PASSWORD: ${USERS_DB_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@platform.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      users-db:
+        condition: service_healthy
+
+  product-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    environment:
+      <<: *platform-env
+      DB_URL: jdbc:postgresql://products-db:5432/products_db
+      DB_USERNAME: ${PRODUCTS_DB_USERNAME:-products}
+      DB_PASSWORD: ${PRODUCTS_DB_PASSWORD}
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      products-db:
+        condition: service_healthy
+
+  order-service:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    environment:
+      <<: *platform-env
+      DB_URL: jdbc:postgresql://orders-db:5432/orders_db
+      DB_USERNAME: ${ORDERS_DB_USERNAME:-orders}
+      DB_PASSWORD: ${ORDERS_DB_PASSWORD}
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      orders-db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------- único punto de entrada
+  api-gateway:
+    <<: *java-service
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      <<: *platform-env
+      RATE_LIMIT_AUTH_REQUESTS: ${RATE_LIMIT_AUTH_REQUESTS:-10}
+      RATE_LIMIT_AUTH_PERIOD: ${RATE_LIMIT_AUTH_PERIOD:-1m}
+      RATE_LIMIT_API_REQUESTS: ${RATE_LIMIT_API_REQUESTS:-100}
+      RATE_LIMIT_API_PERIOD: ${RATE_LIMIT_API_PERIOD:-10s}
+    ports:
+      - "${GATEWAY_PORT:-8090}:8090"
+    depends_on:
+      service-discovery:
+        condition: service_healthy
+      user-service:
+        condition: service_healthy
+      product-service:
+        condition: service_healthy
+      order-service:
+        condition: service_healthy
+
+networks:
+  platform:
+    name: microservices-platform
+
+volumes:
+  users-db-data:
+  products-db-data:
+  orders-db-data:
