@@ -4,7 +4,10 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpStatus;
@@ -104,6 +107,19 @@ public class GlobalExceptionHandler {
         log.warn("Data integrity violation: {}", ex.getMostSpecificCause().getMessage());
         return respond(HttpStatus.CONFLICT, "DATA_CONFLICT", "The request conflicts with existing data", request,
                 List.of());
+    }
+
+    /**
+     * Base de datos caída o sin conexiones disponibles: es un fallo transitorio, así que se responde 503
+     * (reintentable por quien llama) en lugar de un 500 genérico.
+     */
+    @ExceptionHandler({DataAccessResourceFailureException.class, CannotCreateTransactionException.class,
+            TransientDataAccessException.class})
+    ResponseEntity<ApiError> handleDatabaseUnavailable(Exception ex, HttpServletRequest request) {
+        log.error("Database unavailable processing {} {}: {}", request.getMethod(), request.getRequestURI(),
+                ex.getMessage());
+        return respond(HttpStatus.SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "Database is temporarily unavailable",
+                request, List.of());
     }
 
     @ExceptionHandler(Exception.class)
