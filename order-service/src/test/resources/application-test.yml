@@ -1,0 +1,62 @@
+# Perfil "test": sin Config Server ni Eureka (ver surefire en el pom raíz). product-service se simula con
+# WireMock, registrado en el SimpleDiscoveryClient (el balanceador funciona igual que con Eureka).
+# Los valores de resiliencia son más pequeños que en config-repo/order-service.yml para que los tests
+# sean rápidos, pero la mecánica es la misma.
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  cloud:
+    loadbalancer:
+      cache:
+        enabled: false
+      retry:
+        enabled: false
+
+security:
+  jwt:
+    issuer: microservices-platform
+    secret: test-secret-for-unit-and-integration-tests-only-0123456789
+
+clients:
+  product-service:
+    base-url: http://product-service
+    connect-timeout: 500ms
+    read-timeout: 500ms
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      productService:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 6
+        minimum-number-of-calls: 4
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 300ms
+        slow-call-rate-threshold: 100
+        wait-duration-in-open-state: 1s
+        automatic-transition-from-open-to-half-open-enabled: true
+        permitted-number-of-calls-in-half-open-state: 2
+        record-exceptions:
+          - com.samsenpro.platform.order.client.ProductServiceFailure
+        ignore-exceptions:
+          - io.github.resilience4j.bulkhead.BulkheadFullException
+  retry:
+    instances:
+      productService:
+        max-attempts: 3
+        wait-duration: 50ms
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.samsenpro.platform.order.client.ProductServiceUnavailableException
+  bulkhead:
+    instances:
+      productService:
+        max-concurrent-calls: 2
+        max-wait-duration: 0
+
+management:
+  tracing:
+    enabled: false

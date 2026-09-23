@@ -10,6 +10,11 @@ spring:
     hikari:
       maximum-pool-size: 10
       connection-timeout: 5s
+  jpa:
+    properties:
+      hibernate:
+        # Carga las líneas de varios pedidos en una sola consulta al listar (evita N+1)
+        default_batch_fetch_size: 50
 
 # --- Cliente de product-service --------------------------------------------------------------------
 clients:
@@ -39,9 +44,10 @@ resilience4j:
         automatic-transition-from-open-to-half-open-enabled: true
         # En HALF_OPEN se dejan pasar 3 llamadas de prueba: si van bien, CLOSED; si no, OPEN otra vez.
         permitted-number-of-calls-in-half-open-state: 3
-        # Solo los fallos de la dependencia cuentan (timeouts, conexión, 5xx). Un 404 es una respuesta válida.
+        # Solo los fallos de la dependencia cuentan (timeouts, conexión, 5xx). Un 404 es una respuesta válida
+        # de un servicio sano y cuenta como éxito.
         record-exceptions:
-          - com.samsenpro.platform.order.client.ProductServiceUnavailableException
+          - com.samsenpro.platform.order.client.ProductServiceFailure
         ignore-exceptions:
           - io.github.resilience4j.bulkhead.BulkheadFullException
         register-health-indicator: true
@@ -55,7 +61,8 @@ resilience4j:
         wait-duration: 200ms
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
-        # Solo errores transitorios. Los 4xx (400, 401, 403, 404, 409) no se reintentan.
+        # Solo errores transitorios: timeout, conexión, sin instancias, 502/503/504. Los 4xx (400, 401,
+        # 403, 404, 409) y el 500 (error del propio servicio) no se reintentan.
         retry-exceptions:
           - com.samsenpro.platform.order.client.ProductServiceUnavailableException
   bulkhead:

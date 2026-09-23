@@ -25,6 +25,10 @@ spring:
       # Caché del balanceador sobre el registro de Eureka (por defecto 35 s).
       cache:
         ttl: 5s
+      # Los reintentos se gestionan con Resilience4j en un único sitio (ver order-service.yml); el
+      # reintento propio del balanceador los multiplicaría.
+      retry:
+        enabled: false
   data:
     web:
       pageable:
