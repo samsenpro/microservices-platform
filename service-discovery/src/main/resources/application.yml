@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: service-discovery
+  cloud:
+    config:
+      username: ${CONFIG_SERVER_USERNAME}
+      password: ${CONFIG_SERVER_PASSWORD}
+      fail-fast: true
+      retry:
+        initial-interval: 2000
+        multiplier: 1.5
+        max-interval: 10000
+        max-attempts: 20
+  security:
+    user:
+      name: ${EUREKA_USERNAME}
+      password: ${EUREKA_PASSWORD}
+
+---
+# La configuración está en config-repo/service-discovery.yml. Si el Config Server aún no responde, el
+# arranque se reintenta (fail-fast + retry) en lugar de continuar con una configuración incompleta.
+# El perfil "test" no usa Config Server: trae su propia configuración en src/test/resources.
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+    import: "configserver:${CONFIG_SERVER_URL:http://localhost:8888}"
