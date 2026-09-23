@@ -1,0 +1,13 @@
+# Perfil "docker": servicios dentro de la red de docker compose.
+
+eureka:
+  instance:
+    # La IP la asigna Docker y el servicio la registra al arrancar: no hay IPs fijas en la configuración.
+    prefer-ip-address: true
+
+logging:
+  # Logs JSON (Elastic Common Schema): @timestamp, service.name, log.level, message, traceId,
+  # correlationId... listos para un agregador de logs.
+  structured:
+    format:
+      console: ecs

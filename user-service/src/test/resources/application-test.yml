@@ -1,0 +1,23 @@
+# Perfil "test": sin Config Server ni Eureka (ver surefire en el pom raíz). La base de datos la aporta
+# Testcontainers (@ServiceConnection). Replica solo lo que el servicio necesita de config-repo/.
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+security:
+  jwt:
+    issuer: microservices-platform
+    secret: test-secret-for-unit-and-integration-tests-only-0123456789
+    expiration: 1h
+
+users:
+  bootstrap-admin:
+    username: admin
+    email: admin@platform.test
+    password: test-admin-password
+
+management:
+  tracing:
+    enabled: false

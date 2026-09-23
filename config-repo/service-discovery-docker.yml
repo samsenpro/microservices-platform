@@ -1,0 +1,6 @@
+# Eureka Server en Docker. application-docker.yml activa prefer-ip-address para los clientes, pero el
+# servidor debe identificarse como "localhost" para reconocer su propia URL en defaultZone. Si no, se
+# trata a sí mismo como un nodo más e intenta replicarse contra sí mismo.
+eureka:
+  instance:
+    prefer-ip-address: false

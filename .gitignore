@@ -1,0 +1,37 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+dependency-reduced-pom.xml
+
+# Java
+*.class
+hs_err_pid*
+replay_pid*
+
+# Logs
+logs/
+*.log
+
+# Entorno (credenciales)
+.env
+.env.*
+!.env.example
+
+# IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+.apt_generated
+.sts4-cache
+bin/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
