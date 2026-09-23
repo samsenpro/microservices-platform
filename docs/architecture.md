@@ -116,7 +116,10 @@ flowchart LR
 ## 3. Service Discovery
 
 Eureka Server protegido con basic auth (un cliente sin credenciales no puede registrar una instancia
-falsa ni leer el registro).
+falsa ni leer el registro). Los clientes envían las credenciales como **cabecera**, no dentro de la URL
+(`http://usuario:clave@...`): el cliente de Netflix escribe la URL completa en el log cada vez que falla un
+heartbeat. Se detectó al simular una caída de Eureka (la contraseña aparecía 64 veces en los logs) y se
+corrigió con `EurekaClientAuthentication` (platform-commons) y su equivalente en el gateway.
 
 - Cada servicio se registra al arrancar con su IP de la red de Docker (`prefer-ip-address` en el perfil
   `docker`) y renueva su lease cada 5 s.
@@ -138,14 +141,15 @@ config-repo/
 ├── application.yml          Común: Eureka, JWT (issuer + ${JWT_SECRET}), Actuator, logging, tracing, JPA
 ├── application-docker.yml   Perfil docker: logs JSON (ECS), registro por IP
 ├── application-local.yml    Perfil local: logs de texto, DEBUG, detalles de health
-├── service-discovery.yml    Eureka Server
+├── service-discovery.yml    Eureka Server (standalone)
+├── service-discovery-docker.yml  Eureka Server en Docker (sin autorreplicación)
 ├── api-gateway.yml          Rutas, rate limits, timeouts del gateway, Swagger UI
 ├── user-service.yml         Puerto, base de datos, administrador inicial
 ├── product-service.yml      Puerto, base de datos
 └── order-service.yml        Base de datos, URL lógica y timeouts de product-service, Resilience4j
 ```
 
-- **Precedencia**: `application-{perfil}.yml` > `{servicio}.yml` > `application.yml`.
+- **Precedencia**: `{servicio}-{perfil}.yml` > `application-{perfil}.yml` > `{servicio}.yml` > `application.yml`.
 - **Secretos**: nunca en el repositorio. La configuración contiene placeholders (`${JWT_SECRET}`,
   `${DB_PASSWORD}`) que el Config Server devuelve sin resolver y que cada servicio resuelve con sus
   propias variables de entorno (lo comprueba `ConfigServerIntegrationTest`).

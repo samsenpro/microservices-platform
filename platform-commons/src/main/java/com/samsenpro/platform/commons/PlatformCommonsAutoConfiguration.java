@@ -1,6 +1,7 @@
 package com.samsenpro.platform.commons;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.samsenpro.platform.commons.discovery.EurekaClientAuthentication;
 import com.samsenpro.platform.commons.error.ApiErrorWriter;
 import com.samsenpro.platform.commons.error.GlobalExceptionHandler;
 import com.samsenpro.platform.commons.security.AuthenticatedUser;
@@ -15,8 +16,13 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.cloud.netflix.eureka.http.EurekaClientHttpRequestFactorySupplier;
+import org.springframework.cloud.netflix.eureka.http.RestTemplateDiscoveryClientOptionalArgs;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -39,7 +45,7 @@ import java.util.Set;
 /**
  * Registra las piezas comunes en cada servicio de negocio que añade platform-commons como dependencia.
  */
-@AutoConfiguration
+@AutoConfiguration(beforeName = "org.springframework.cloud.netflix.eureka.config.DiscoveryClientOptionalArgsConfiguration")
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableConfigurationProperties(JwtProperties.class)
 public class PlatformCommonsAutoConfiguration {
@@ -99,6 +105,21 @@ public class PlatformCommonsAutoConfiguration {
     @Bean
     PlatformHttpSecurity platformHttpSecurity(JwtAuthenticationConverter converter, ApiErrorWriter errorWriter) {
         return new PlatformHttpSecurity(converter, errorWriter);
+    }
+
+    /** Credenciales de Eureka por cabecera (ver {@link EurekaClientAuthentication}). */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = "org.springframework.cloud.netflix.eureka.http.RestTemplateDiscoveryClientOptionalArgs")
+    @ConditionalOnProperty(prefix = "eureka.client", name = "enabled", matchIfMissing = true)
+    static class EurekaClientAuthenticationConfiguration {
+
+        @Bean
+        RestTemplateDiscoveryClientOptionalArgs eurekaDiscoveryClientOptionalArgs(
+                EurekaClientHttpRequestFactorySupplier requestFactory,
+                @Value("${platform.eureka.username:}") String username,
+                @Value("${platform.eureka.password:}") String password) {
+            return EurekaClientAuthentication.optionalArgs(requestFactory, username, password);
+        }
     }
 
     /**

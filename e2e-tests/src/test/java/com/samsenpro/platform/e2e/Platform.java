@@ -33,7 +33,52 @@ final class Platform {
     private static String userToken;
     private static String otherUserToken;
 
+    static {
+        awaitPlatformReady();
+    }
+
     private Platform() {
+    }
+
+    /**
+     * "healthy" en docker compose no implica que el gateway ya vea la instancia UP en Eureka (registro y
+     * caché tardan unos segundos). Se espera a que el gateway enrute a los tres servicios usando las rutas
+     * públicas de documentación, que no consumen el cupo de login.
+     */
+    private static void awaitPlatformReady() {
+        long deadline = System.nanoTime() + Duration.ofSeconds(120).toNanos();
+        for (String service : List.of("users", "products", "orders")) {
+            while (true) {
+                int status;
+                try {
+                    status = HTTP.send(HttpRequest.newBuilder(URI.create(GATEWAY + "/docs/" + service + "/v3/api-docs"))
+                            .timeout(Duration.ofSeconds(5)).GET().build(), HttpResponse.BodyHandlers.discarding())
+                            .statusCode();
+                } catch (IOException e) {
+                    status = -1;
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(e);
+                }
+                if (status == 200) {
+                    break;
+                }
+                if (System.nanoTime() > deadline) {
+                    throw new IllegalStateException("The gateway cannot reach " + service + " (last status " + status
+                            + "). Is the platform running? docker compose up -d");
+                }
+                sleep(Duration.ofSeconds(2));
+            }
+        }
+    }
+
+    private static void sleep(Duration duration) {
+        try {
+            Thread.sleep(duration.toMillis());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        }
     }
 
     // ------------------------------------------------------------------ HTTP a través del gateway

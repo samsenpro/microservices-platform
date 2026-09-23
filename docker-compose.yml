@@ -14,7 +14,10 @@ x-platform-env: &platform-env
   CONFIG_SERVER_URL: http://config-server:8888
   CONFIG_SERVER_USERNAME: ${CONFIG_SERVER_USERNAME:?CONFIG_SERVER_USERNAME is required}
   CONFIG_SERVER_PASSWORD: ${CONFIG_SERVER_PASSWORD:?CONFIG_SERVER_PASSWORD is required}
-  EUREKA_SERVER_URL: http://${EUREKA_USERNAME}:${EUREKA_PASSWORD}@service-discovery:8761/eureka/
+  # Sin credenciales en la URL: el cliente Eureka las envía como cabecera basic auth
+  EUREKA_SERVER_URL: http://service-discovery:8761/eureka/
+  EUREKA_USERNAME: ${EUREKA_USERNAME:?EUREKA_USERNAME is required}
+  EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
   JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
 
 x-postgres: &postgres
@@ -49,8 +52,6 @@ services:
       dockerfile: service-discovery/Dockerfile
     environment:
       <<: *platform-env
-      EUREKA_USERNAME: ${EUREKA_USERNAME:?EUREKA_USERNAME is required}
-      EUREKA_PASSWORD: ${EUREKA_PASSWORD:?EUREKA_PASSWORD is required}
     ports:
       # Dashboard de Eureka (protegido con EUREKA_USERNAME / EUREKA_PASSWORD)
       - "127.0.0.1:${EUREKA_PORT:-8761}:8761"

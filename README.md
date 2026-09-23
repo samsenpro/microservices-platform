@@ -196,7 +196,8 @@ El Config Server sirve el directorio [`config-repo/`](config-repo):
 | `application.yml`         | Común: Eureka, JWT (emisor y `${JWT_SECRET}`), Actuator, logging, tracing, JPA, Flyway |
 | `application-docker.yml`  | Perfil `docker`: logs JSON, registro por IP                                  |
 | `application-local.yml`   | Perfil `local`: logs de texto, nivel DEBUG, detalles de health               |
-| `service-discovery.yml`   | Eureka Server                                                                |
+| `service-discovery.yml`   | Eureka Server (standalone, sin réplicas)                                     |
+| `service-discovery-docker.yml` | Eureka Server en Docker: se identifica como `localhost` para no replicarse contra sí mismo |
 | `api-gateway.yml`         | Rutas, rate limits, timeouts del gateway, Swagger UI                         |
 | `user-service.yml` / `product-service.yml` | Puerto, base de datos                                       |
 | `order-service.yml`       | Base de datos, URL lógica y timeouts de product-service, Resilience4j        |
@@ -314,9 +315,8 @@ Parar: `docker compose down` (con `-v` también se borran los datos).
    `127.0.0.1:5441-5443`).
 2. Arrancar cada servicio con `SPRING_PROFILES_ACTIVE=local`, en el orden config-server → service-discovery
    → servicios → gateway, con estas variables de entorno:
-   - **Todos**: `CONFIG_SERVER_USERNAME`, `CONFIG_SERVER_PASSWORD` y `JWT_SECRET`, más
-     `EUREKA_SERVER_URL=http://<EUREKA_USERNAME>:<EUREKA_PASSWORD>@localhost:8761/eureka/`.
-   - **service-discovery**: además, `EUREKA_USERNAME` y `EUREKA_PASSWORD`.
+   - **Todos**: `CONFIG_SERVER_USERNAME`, `CONFIG_SERVER_PASSWORD`, `EUREKA_USERNAME`, `EUREKA_PASSWORD` y
+     `JWT_SECRET`.
    - **Cada servicio con base de datos**: `DB_USERNAME` y `DB_PASSWORD` de la suya. Las URLs de las bases
      de datos y de Config Server tienen valores por defecto para `localhost`.
    - **config-server**: lee `../config-repo/` (relativo al directorio de trabajo). Otra ruta se indica con

@@ -19,6 +19,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -120,6 +121,17 @@ public class GlobalExceptionHandler {
                 ex.getMessage());
         return respond(HttpStatus.SERVICE_UNAVAILABLE, "DATABASE_UNAVAILABLE", "Database is temporarily unavailable",
                 request, List.of());
+    }
+
+    /**
+     * El cliente cerró la conexión antes de recibir la respuesta (por ejemplo, order-service agotó su
+     * timeout mientras este servicio seguía trabajando). No hay nadie a quien responder y no es un error
+     * de este servicio.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    void handleClientGone(AsyncRequestNotUsableException ex, HttpServletRequest request) {
+        log.info("Client disconnected before the response of {} {} was sent", request.getMethod(),
+                request.getRequestURI());
     }
 
     @ExceptionHandler(Exception.class)

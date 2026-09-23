@@ -3,10 +3,16 @@ server:
   port: ${SERVER_PORT:8761}
 
 eureka:
+  instance:
+    hostname: localhost
   client:
     # Es el propio registro: no se registra ni descarga el registro de otro servidor.
     register-with-eureka: false
     fetch-registry: false
+    # Standalone, sin réplicas: apunta a sí mismo (se descarta como peer). Además evita heredar
+    # EUREKA_SERVER_URL, que lleva credenciales y el servidor escribiría en el log al listar sus peers.
+    service-url:
+      defaultZone: http://localhost:${server.port}/eureka/
   server:
     # Con pocas instancias la autopreservación mantendría en el registro instancias muertas.
     # Se desactiva para que una instancia caída desaparezca en segundos (entorno de demostración).
