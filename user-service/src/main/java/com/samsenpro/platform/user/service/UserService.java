@@ -36,6 +36,10 @@ public class UserService {
     /** El registro público siempre crea usuarios con rol USER; los ADMIN los asigna otro ADMIN. */
     @Transactional
     public UserResponse register(RegisterRequest request) {
+        if (!PasswordRules.fitsBcrypt(request.password())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "PASSWORD_TOO_LONG",
+                    "Password must not exceed " + PasswordRules.BCRYPT_MAX_BYTES + " bytes");
+        }
         if (users.existsByUsernameIgnoreCase(request.username())) {
             throw new ApiException(HttpStatus.CONFLICT, "USERNAME_TAKEN", "Username is already registered");
         }

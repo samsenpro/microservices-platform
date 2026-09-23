@@ -487,6 +487,9 @@ Qué faltaría para una implementación empresarial real:
 - **Consistencia del stock**: hoy el pedido valida el stock pero no lo reserva, y dos pedidos simultáneos
   podrían venderlo dos veces. Haría falta una reserva en product-service con una saga (orquestada o con
   eventos, por ejemplo Kafka + outbox) y compensación si el pedido falla.
+- **Consulta por lotes**: order-service pide cada producto en una llamada secuencial. Con muchas líneas y un
+  product-service lento, la latencia se acumula (queda acotada porque el circuito se abre por llamadas
+  lentas). Un endpoint `GET /api/products?ids=…` validaría todo el pedido en una sola llamada.
 - **Idempotencia** de `POST /api/orders` (cabecera `Idempotency-Key`) para que un cliente pueda reintentar
   sin duplicar pedidos.
 - **Claves JWT asimétricas** (RS256/ES256) con JWKS publicado por el emisor y rotación de claves, o un

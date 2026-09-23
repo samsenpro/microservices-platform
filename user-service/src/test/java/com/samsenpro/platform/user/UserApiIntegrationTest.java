@@ -104,6 +104,21 @@ class UserApiIntegrationTest extends PostgresIntegrationTest {
     }
 
     @Test
+    void passwordsLongerThan72BytesAreRejectedCleanlyNot500() throws Exception {
+        // 72 caracteres (pasa @Size) pero 144 bytes en UTF-8: BCrypt no puede procesarla
+        String multibyte = "ñ".repeat(72);
+
+        mvc.perform(post("/api/users/register").contentType(MediaType.APPLICATION_JSON)
+                        .content(registerBody(uniqueName(), uniqueName() + "@example.com", multibyte)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PASSWORD_TOO_LONG"));
+        mvc.perform(post("/api/users/login").contentType(MediaType.APPLICATION_JSON)
+                        .content(loginBody("admin", multibyte)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+    }
+
+    @Test
     void wrongPasswordAndUnknownUserGetTheSameAnswer() throws Exception {
         String username = uniqueName();
         register(username, "S3cure-Passw0rd").andExpect(status().isCreated());

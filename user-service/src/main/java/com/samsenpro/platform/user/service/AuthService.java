@@ -38,6 +38,10 @@ public class AuthService {
      */
     @Transactional(readOnly = true)
     public TokenResponse login(LoginRequest request) {
+        if (!PasswordRules.fitsBcrypt(request.password())) {
+            // Ninguna contraseña almacenada puede ser así de larga
+            throw invalidCredentials(request.username());
+        }
         User user = users.findByUsernameIgnoreCase(request.username()).orElse(null);
         if (user == null) {
             passwordEncoder.matches(request.password(), dummyHash);
