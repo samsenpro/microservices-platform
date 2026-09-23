@@ -1,0 +1,23 @@
+# Perfil "test": sin Config Server ni Eureka. Se importan los MISMOS ficheros que sirve el Config Server,
+# así los tests validan las rutas y filtros reales. Los microservicios se simulan con WireMock registrado
+# en el SimpleDiscoveryClient (ver GatewayIntegrationTest).
+spring:
+  config:
+    import:
+      - file:../config-repo/application.yml
+      - file:../config-repo/api-gateway.yml
+  cloud:
+    loadbalancer:
+      cache:
+        enabled: false
+
+JWT_SECRET: test-secret-for-unit-and-integration-tests-only-0123456789
+# Límites pequeños para poder comprobarlos
+RATE_LIMIT_AUTH_REQUESTS: 3
+RATE_LIMIT_AUTH_PERIOD: 1m
+RATE_LIMIT_API_REQUESTS: 5
+RATE_LIMIT_API_PERIOD: 1m
+
+management:
+  tracing:
+    enabled: false

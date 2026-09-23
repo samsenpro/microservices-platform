@@ -1,0 +1,28 @@
+# User Service: usuarios, roles, autenticación y emisión de JWT
+server:
+  port: ${SERVER_PORT:8091}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5441/users_db}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      connection-timeout: 5000
+
+users:
+  # Administrador inicial: se crea solo si no existe y solo si ADMIN_PASSWORD está definida.
+  bootstrap-admin:
+    username: ${ADMIN_USERNAME:admin}
+    email: ${ADMIN_EMAIL:admin@platform.local}
+    password: ${ADMIN_PASSWORD:}
+
+platform:
+  openapi:
+    title: User Service API
+    description: Registro, login (emisión de JWT) y gestión de usuarios
+
+info:
+  service:
+    description: Usuarios, roles y emisión de JWT

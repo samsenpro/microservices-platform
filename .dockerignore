@@ -1,0 +1,11 @@
+**/target/
+.git/
+.idea/
+.vscode/
+*.iml
+.env
+.env.*
+docs/
+scripts/
+e2e-tests/src/
+*.md

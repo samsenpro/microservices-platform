@@ -1,0 +1,8 @@
+# SOLO PARA DESARROLLO: activa el perfil "chaos" en product-service para poder inyectar latencia y
+# errores HTTP 500/503 (ver scripts/chaos.sh y la sección "Failure Simulation" del README).
+#
+#   docker compose -f docker-compose.yml -f docker-compose.chaos.yml up -d
+services:
+  product-service:
+    environment:
+      SPRING_PROFILES_ACTIVE: docker,chaos

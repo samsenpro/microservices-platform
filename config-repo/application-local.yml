@@ -1,0 +1,11 @@
+# Perfil "local": servicios arrancados desde el IDE o con ./mvnw spring-boot:run contra las bases de datos
+# de docker compose publicadas en 127.0.0.1. Logs en texto plano, más legibles durante el desarrollo.
+
+logging:
+  level:
+    com.samsenpro.platform: DEBUG
+
+management:
+  endpoint:
+    health:
+      show-details: always
