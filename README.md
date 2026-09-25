@@ -1,3 +1,5 @@
+**🇪🇸 Español** | [🇬🇧 English](README.en.md)
+
 # microservices-platform
 
 ![Java](https://img.shields.io/badge/Java-21-orange)
